@@ -13,6 +13,8 @@ type mockProductStorage struct {
 	id        uuid.UUID
 	getErr    error
 	createErr error
+	bulkCount int
+	bulkErr   error
 }
 
 func (m mockProductStorage) Get(ctx context.Context, id uuid.UUID) (Product, error) {
@@ -125,4 +127,10 @@ func TestGetProduct(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "MacBook", product.Name)
 	require.Equal(t, 6000.0, finalPrice)
+}
+func (m mockProductStorage) BulkCreate(ctx context.Context, params []CreateProductPayload) (int, error) {
+	if m.bulkCount != 0 {
+		return m.bulkCount, m.bulkErr
+	}
+	return len(params), m.bulkErr
 }
