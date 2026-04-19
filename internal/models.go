@@ -14,6 +14,7 @@ var ErrInvalidInput = errors.New("invalid input")
 type ProductStorage interface {
 	Get(ctx context.Context, id uuid.UUID) (Product, error)
 	Create(ctx context.Context, params CreateProductPayload) (uuid.UUID, error)
+	BulkCreate(ctx context.Context, params []CreateProductPayload) (int, error)
 }
 
 type Category struct {

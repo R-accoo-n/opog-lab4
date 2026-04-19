@@ -6,6 +6,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
+	_ "github.com/lib/pq"
 
 	"github.com/R-accoo-n/opog-lab3/internal"
 )
@@ -83,4 +85,48 @@ func (c Client) Create(ctx context.Context, params internal.CreateProductPayload
 	}
 
 	return ids[0], nil
+}
+
+func (c Client) BulkCreate(ctx context.Context, params []internal.CreateProductPayload) (int, error) {
+	tx, err := sqlx.NewDb(c.dbExec.(*sqlx.DB).DB, "postgres").BeginTxx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.Prepare(pq.CopyIn(
+		"products",
+		"name",
+		"category_name",
+		"category_tax",
+		"price",
+	))
+	if err != nil {
+		return 0, fmt.Errorf("failed to prepare copyin: %w", err)
+	}
+
+	for _, item := range params {
+		if _, err = stmt.Exec(
+			item.Name,
+			item.Category.Name,
+			item.Category.Tax,
+			item.Price,
+		); err != nil {
+			_ = stmt.Close()
+			return 0, fmt.Errorf("failed to copy row: %w", err)
+		}
+	}
+
+	if _, err = stmt.Exec(); err != nil {
+		_ = stmt.Close()
+		return 0, fmt.Errorf("failed to flush copyin: %w", err)
+	}
+	if err = stmt.Close(); err != nil {
+		return 0, fmt.Errorf("failed to close statement: %w", err)
+	}
+	if err = tx.Commit(); err != nil {
+		return 0, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return len(params), nil
 }

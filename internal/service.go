@@ -50,3 +50,31 @@ func (p Products) GetProduct(ctx context.Context, id uuid.UUID) (Product, float6
 	finalPrice := product.Price + product.Price*product.Category.Tax/100
 	return product, finalPrice, nil
 }
+
+func (p Products) BulkCreateProducts(ctx context.Context, params []CreateProductPayload) (int, error) {
+	if len(params) == 0 {
+		return 0, nil
+	}
+
+	for _, item := range params {
+		if item.Name == "" {
+			return 0, fmt.Errorf("%w: name is required", ErrInvalidInput)
+		}
+		if item.Category.Name == "" {
+			return 0, fmt.Errorf("%w: category name is required", ErrInvalidInput)
+		}
+		if item.Price < 0 {
+			return 0, fmt.Errorf("%w: price cannot be negative", ErrInvalidInput)
+		}
+		if item.Category.Tax < 0 {
+			return 0, fmt.Errorf("%w: tax cannot be negative", ErrInvalidInput)
+		}
+	}
+
+	count, err := p.productStorage.BulkCreate(ctx, params)
+	if err != nil {
+		return 0, fmt.Errorf("failed to bulk create products: %w", err)
+	}
+
+	return count, nil
+}
